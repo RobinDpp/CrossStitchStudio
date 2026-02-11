@@ -38,6 +38,9 @@ auth_url = (
     f"code_challenge_method=S256"
 )
 
+st.write(f"DEBUG - ID utilisé : {CLIENT_ID}")
+st.write(f"DEBUG - URL de redirection : {REDIRECT_URI}")
+
 st.write("### Étape 1 : Autorisation")
 st.link_button("Se connecter à ma boutique Etsy", auth_url)
 
