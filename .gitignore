@@ -1,4 +1,2 @@
 .streamlit/
 __pycache__/
-*.json
-!.rgb-dmc.json
