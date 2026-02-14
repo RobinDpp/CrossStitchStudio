@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import io
 import json
 import base64
@@ -229,7 +230,6 @@ def generate_pk_pdf(processed_img, used_colors):
 
 
 
-
 def generate_mockup_func(processed_image):
     """Génère le mockup à partir de l'image pixelisée (Page 3)"""
     MODEL_ID = "gemini-2.5-flash-image"
@@ -300,19 +300,18 @@ def add_pro_badge(target_image):
 
 
 
-def generate_seo_package(visual_concept, num_colors):
-    """Génère le pack SEO en tenant compte du nombre réel de couleurs DMC"""
+def generate_seo_package(visual_concept, num_colors, grid_size):
+    """Génère le pack SEO avec les vraies specs techniques"""
     MODEL_ID_TEXT = "gemini-2.0-flash"
     
     seo_prompt = f"""
     Act as a top-tier Etsy SEO expert. Create a professional listing for a Digital PDF Cross Stitch Pattern.
     Subject: {visual_concept}
-    Technical Specs: 200x200 stitches max, exactly {num_colors} DMC colors used.
+    Technical Specs: {grid_size}x{grid_size} stitches, exactly {num_colors} DMC colors used.
     
     Return ONLY a JSON object with these exact keys: "title", "description", "tags".
-    - No markdown formatting (no asterisks **).
     - "title": 140 chars max.
-    - "description": Mention that it uses {num_colors} DMC colors. Use bullet points with '-' or '•'.
+    - "description": Mention clearly that the pattern is {grid_size}x{grid_size} stitches and uses {num_colors} colors.
     - "tags": 13 tags, comma-separated.
     """
 
@@ -321,5 +320,39 @@ def generate_seo_package(visual_concept, num_colors):
         contents=seo_prompt,
         config={'response_mime_type': 'application/json'}
     )
-    
     return json.loads(response.text)
+
+
+
+
+
+def load_factory_history():
+    """Charge l'historique des sujets déjà traités depuis le fichier JSON"""
+    file_path = 'factory_history.json'
+    if not os.path.exists(file_path):
+        return []
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+def save_to_factory_history(subject):
+    """Ajoute un sujet à l'historique pour éviter les doublons"""
+    history = load_factory_history()
+    if subject not in history:
+        history.append(subject)
+        with open('factory_history.json', 'w', encoding='utf-8') as f:
+            json.dump(history, f, ensure_ascii=False, indent=4)
+
+
+
+def ensure_export_dir():
+    """Crée le dossier exports s'il n'existe pas"""
+    if not os.path.exists("exports"):
+        os.makedirs("exports")
+
+def get_all_saved_products():
+    """Récupère la liste des dossiers de produits déjà générés"""
+    ensure_export_dir()
+    return [d for d in os.listdir("exports") if os.path.isdir(os.path.join("exports", d))]
