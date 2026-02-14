@@ -53,7 +53,7 @@ with col2:
 with col3:
     st.subheader("🛒 Etsy Automation")
     st.write("Gérez vos mockups et mettez vos designs en vente.")
-    st.page_link("pages/4_🛒_Etsy_Manager.py", label="Ma Boutique", icon="🛒")
+    st.page_link("pages/5_🛒_Etsy_Manager.py", label="Ma Boutique", icon="🛒")
 
 st.divider()
 
