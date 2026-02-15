@@ -26,7 +26,16 @@ except FileNotFoundError:
 def generate_pattern_image_func(subject):
     """Génère l'image source du patron avec le modèle Gemini 2.5 Flash Image"""
     MODEL_ID = "gemini-2.5-flash-image"
-    BASE_PROMPT = ", ultra detailed, high contrast, bold black outlines, clean design, pure white background, vector style, no text"
+    BASE_PROMPT = """, ultra detailed and well-crafted,
+        high contrast illustration with bold black outlines,
+        clean and sharp design, strong shadows,
+        simple but highly readable composition,
+        centered subject, front view,
+        pure white background, no background elements,
+        flat colors with subtle depth,
+        print-ready commercial illustration,
+        vector style, sticker and t-shirt friendly,
+        4k, extremely sharp, no text, no watermark"""
     
     contents = [
         types.Content(
@@ -246,7 +255,15 @@ def generate_mockup_func(processed_image):
             role="user",
             parts=[
                 types.Part.from_bytes(mime_type="image/png", data=buffered.getvalue()),
-                types.Part.from_text(text="Voici un design au point de croix, mets le dans un cadre de point circulaire de croix sans tissu en dépassant et un décors approprié pour en faire la présentation en gardant exactement le meme design. Aucune ligne ne doit etre tracée, simplement des point de croix. N'aojoute aucun point de plus sur ce design. Garde exactement le même."),
+                types.Part.from_text(text=f"""
+                    Professional Etsy product photography of a finished cross-stitch embroidery. 
+                    The central design is placed inside a circular wooden embroidery hoop. 
+                    IMPORTANT: The embroidery is perfectly centered, no fabric is hanging out of the hoop. 
+                    The texture must show realistic individual X-shaped stitches on a clean white Aida cloth background. 
+                    SCENE: Placed on a cozy, slightly blurred (bokeh) wooden table background with a pair of vintage scissors and some skeins of DMC thread next to it. 
+                    LIGHTING: Soft natural morning light, realistic shadows, high resolution, 8k, macro photography. 
+                    STRICT RULE: Do not modify or add any elements to the original cross-stitch pattern provided, keep the design exactly as shown.
+                    """),
             ],
         ),
     ]
@@ -264,38 +281,66 @@ def generate_mockup_func(processed_image):
     return image_result
 
 def add_pro_badge(target_image):
-    """Ajoute le badge 'PDF PATTERN' sur l'image (Page 3)"""
+    """Ajoute le badge 'PDF PATTERN' en gros et lisible"""
+    # 1. Préparation du canevas
     img = target_image.convert("RGBA")
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     
     w, h = img.size
+    # On définit le badge (environ 22% de la largeur de l'image)
     badge_radius = int(w * 0.11) 
-    margin = int(w * 0.04)
+    margin = int(w * 0.05)
+    
+    # Centre du badge
     center_x = w - badge_radius - margin
     center_y = badge_radius + margin
     
+    # Dessin du cercle de fond (Crème Etsy)
     bbox = [center_x - badge_radius, center_y - badge_radius, 
             center_x + badge_radius, center_y + badge_radius]
     
-    # Dessin du badge
-    draw.ellipse(bbox, fill=(255, 255, 255, 240))
-    draw.ellipse(bbox, outline=(40, 40, 40, 255), width=4)
+    draw.ellipse(bbox, fill=(255, 255, 255, 255)) # Fond blanc opaque
+    draw.ellipse(bbox, outline=(40, 40, 40, 255), width=int(w * 0.005)) # Bordure épaisse
     
+    # 2. Gestion des polices (Taille augmentée)
     try:
-        font_size = int(badge_radius * 0.4)
-        font = ImageFont.truetype("arial.ttf", font_size)
-        font_small = ImageFont.truetype("arial.ttf", int(font_size * 0.6))
+        # On cherche une police système. Si échec, PIL utilise la police par défaut.
+        # Taille de police basée sur le rayon du badge
+        font_size_big = int(badge_radius * 0.6) # "PDF"
+        font_size_small = int(badge_radius * 0.25) # "PATTERN"
+        
+        # Chemins courants selon l'OS (Windows/Linux)
+        font_path = "arial.ttf" if os.name == 'nt' else "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        
+        font_big = ImageFont.truetype(font_path, font_size_big)
+        font_small = ImageFont.truetype(font_path, font_size_small)
     except:
-        font = font_small = ImageFont.load_default()
+        # Backup si aucune police n'est trouvée (on essaie de charger la police par défaut mais c'est souvent petit)
+        font_big = ImageFont.load_default()
+        font_small = ImageFont.load_default()
 
-    draw.text((center_x, center_y - int(badge_radius*0.15)), "PDF", 
-              fill=(0, 0, 0, 255), font=font, anchor="mm")
-    draw.text((center_x, center_y + int(badge_radius*0.35)), "PATTERN", 
-              fill=(80, 80, 80, 255), font=font_small, anchor="mm")
+    # 3. Dessin du texte avec ancrage au milieu (mm)
+    # PDF est placé légèrement au-dessus du centre
+    draw.text(
+        (center_x, center_y - int(badge_radius * 0.1)), 
+        "PDF", 
+        fill=(0, 0, 0, 255), 
+        font=font_big, 
+        anchor="mm"
+    )
     
+    # PATTERN est placé en dessous
+    draw.text(
+        (center_x, center_y + int(badge_radius * 0.45)), 
+        "PATTERN", 
+        fill=(60, 60, 60, 255), 
+        font=font_small, 
+        anchor="mm"
+    )
+    
+    # Fusion et retour en RGB
     return Image.alpha_composite(img, overlay).convert("RGB")
-
 
 
 
