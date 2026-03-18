@@ -1,6 +1,8 @@
 import streamlit as st
 import os
 import subprocess
+import time
+import shutil
 from PIL import Image
 from app_auth import check_password
 from utils import (
@@ -158,26 +160,53 @@ if run_btn and process_list:
             st.error(f"Erreur sur {subject} : {e}")
     st.rerun()
 
-# --- HISTORIQUE ---
+# --- HISTORIQUE COMPLET AVEC SYSTÈME DE SUPPRESSION ---
 st.divider()
 st.subheader("🗃️ Inventaire des Productions")
 
 if os.path.exists("exports"):
+    # On récupère la liste des dossiers
     folders = sorted(os.listdir("exports"), reverse=True)
+    
     for f in folders:
         p = os.path.join("exports", f)
         if os.path.isdir(p):
+            # Création d'une ligne avec le titre et le bouton de suppression
+            # On utilise un container pour grouper visuellement
             with st.expander(f"📦 {f.replace('_', ' ').upper()}", expanded=False):
-                # VISUELS
+                
+                # --- ZONE DE SUPPRESSION (SÉCURISÉE) ---
+                col_title, col_del = st.columns([5, 1])
+                with col_del:
+                    # Popover pour confirmer la suppression sans tout supprimer par erreur
+                    with st.popover("🗑️ Supprimer", use_container_width=True):
+                        st.warning("Confirmer la suppression ?")
+                        if st.button("OUI, SUPPRIMER", key=f"del_{f}", type="primary", use_container_width=True):
+                            import shutil
+                            shutil.rmtree(p) # Supprime le dossier et tout son contenu
+                            st.toast(f"Produit {f} supprimé.")
+                            time.sleep(1)
+                            st.rerun()
+
+                # --- AFFICHAGE DES VISUELS ---
                 v1, v2, v3 = st.columns(3)
-                v1.image(os.path.join(p, "1_ref.png"), caption="Référence IA")
+                # Image 1 : Référence
+                if os.path.exists(os.path.join(p, "1_ref.png")):
+                    v1.image(os.path.join(p, "1_ref.png"), caption="Référence IA")
                 
+                # Image 2 : Pixel HD (avec fallback)
                 img_px_path = os.path.join(p, "2_pix_hd.png")
-                if not os.path.exists(img_px_path): img_px_path = os.path.join(p, "2_pix.png")
-                v2.image(img_px_path, caption="Pixel HD (Etsy Ready)")
-                v3.image(os.path.join(p, "3_mockup.png"), caption="Mockup Final")
+                if not os.path.exists(img_px_path): 
+                    img_px_path = os.path.join(p, "2_pix.png")
                 
-                # SEO & ACTIONS
+                if os.path.exists(img_px_path):
+                    v2.image(img_px_path, caption="Pixel HD (Etsy Ready)")
+                
+                # Image 3 : Mockup
+                if os.path.exists(os.path.join(p, "3_mockup.png")):
+                    v3.image(os.path.join(p, "3_mockup.png"), caption="Mockup Final")
+                
+                # --- SEO & ACTIONS ---
                 st.write("")
                 c_seo, c_act = st.columns([3, 1])
                 
