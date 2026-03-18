@@ -256,13 +256,16 @@ def generate_mockup_func(processed_image):
             parts=[
                 types.Part.from_bytes(mime_type="image/png", data=buffered.getvalue()),
                 types.Part.from_text(text=f"""
-                    Professional Etsy product photography of a finished cross-stitch embroidery. 
-                    The central design is placed inside a circular wooden embroidery hoop. 
-                    IMPORTANT: The embroidery is perfectly centered, no fabric is hanging out of the hoop. 
-                    The texture must show realistic individual X-shaped stitches on a clean white Aida cloth background. 
-                    SCENE: Placed on a cozy, slightly blurred (bokeh) wooden table background with a pair of vintage scissors and some skeins of DMC thread next to it. 
-                    LIGHTING: Soft natural morning light, realistic shadows, high resolution, 8k, macro photography. 
-                    STRICT RULE: Do not modify or add any elements to the original cross-stitch pattern provided, keep the design exactly as shown.
+                    SUBJECT: Professional Etsy product photography of a finished cross-stitch masterpiece. The central design is strictly composed of distinct, microscopic X-shaped stitches.
+
+                    HOOP & FABRIC: The design is perfectly tight and secured inside a premium circular wooden embroidery hoop.
+                    STRICT RULE ON FABRIC: The white Aida cloth background is professionally trimmed; absolutely no excess fabric is visible outside the wooden frame. The edges of the hoop are clean and sharp against the background.
+
+                    TEXTURE: High-detail macro shot showing the rhythmic grid of the Aida cloth. Every single stitch must be a clear "X" shape, no continuous lines, no satin stitches, no free-hand embroidery. It must look like a digital pattern rendered into real thread.
+
+                    SCENE & LIGHTING: Placed on a cozy wooden table, soft bokeh background. Next to the hoop are vintage craft supplies: sharp scissors and neatly organized DMC thread skeins. Soft, diffused natural side-lighting to emphasize the 3D texture of the X-stitches without creating harsh glares.
+
+                    TECHNICAL: 8k resolution, cinematic product shot, extremely sharp focus on the center, no distortion, zero fabric overhang.
                     """),
             ],
         ),
