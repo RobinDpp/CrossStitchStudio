@@ -18,7 +18,12 @@ if not check_password():
 st.set_page_config(page_title="Factory Master List", layout="wide", page_icon="📑")
 ensure_export_dir()
 
-# --- GESTION DE LA LISTE MAITRE (SIDEBAR) ---
+# --- CONFIGURATION DES DOSSIERS ---
+ASSETS_DIR = "utils_assets"
+if not os.path.exists(ASSETS_DIR):
+    os.makedirs(ASSETS_DIR)
+
+# --- GESTION DE LA LISTE MAITRE ---
 MASTER_LIST_FILE = "master_list.txt"
 
 def load_master_list():
@@ -30,7 +35,7 @@ def save_master_list(content):
     with open(MASTER_LIST_FILE, "w", encoding="utf-8") as f:
         f.write(content)
 
-# --- CSS DARK MODE & COLORS ---
+# --- CSS DARK MODE & LAYOUT ---
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #fafafa; }
@@ -48,12 +53,16 @@ st.markdown("""
     .done-pill { color: #00ff88; font-weight: bold; text-decoration: line-through rgba(0,255,136,0.3); padding: 0 4px; }
     .todo-pill { color: #8b949e; padding: 0 4px; }
 
+    /* Style pour les images de ressources et de produits */
     [data-testid="stImage"] img {
-        width: 100% !important;
-        height: auto !important;
-        image-rendering: pixelated;
         border-radius: 8px;
         border: 1px solid #30363d;
+        transition: transform 0.2s;
+    }
+    
+    [data-testid="stImage"] img:hover {
+        transform: scale(1.02);
+        border-color: #2e7d32;
     }
 
     .copy-container { 
@@ -62,6 +71,14 @@ st.markdown("""
         border-radius: 10px; 
         border: 1px solid #30363d; 
         border-left: 5px solid #2e7d32; 
+    }
+
+    .asset-card {
+        background-color: #161b22;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        text-align: center;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -74,19 +91,20 @@ def copy_btn(text, label, key):
 
 def open_folder_and_select(file_path):
     path = os.path.realpath(file_path)
-    subprocess.Popen(f'explorer /select,"{path}"')
+    if os.name == 'nt': # Windows
+        subprocess.Popen(f'explorer /select,"{path}"')
+    else:
+        subprocess.Popen(['open', os.path.dirname(path)])
 
 # --- SIDEBAR : LISTE INTELLIGENTE ---
 with st.sidebar:
     st.title("📑 Master List")
     raw_content = load_master_list()
-    # On sépare par virgule ET retour à la ligne pour l'analyse
     all_items = [s.strip() for s in raw_content.replace(',', '\n').split('\n') if s.strip()]
     existing_folders = [f.lower() for f in os.listdir("exports")] if os.path.exists("exports") else []
     
     formatted_html = '<div class="master-list-box">'
     items_to_keep = []
-    
     for item in all_items:
         safe_name = "".join([c if c.isalnum() else "_" for c in item]).lower()
         if safe_name in existing_folders:
@@ -100,7 +118,7 @@ with st.sidebar:
     
     st.divider()
     with st.expander("📝 Éditer la source"):
-        new_content = st.text_area("Source (Virgules ou lignes) :", value=raw_content, height=150)
+        new_content = st.text_area("Source :", value=raw_content, height=150)
         if st.button("Enregistrer"):
             save_master_list(new_content)
             st.rerun()
@@ -114,9 +132,7 @@ st.title("🏭 Production Session")
 col_input, col_config = st.columns([2, 1])
 
 with col_input:
-    to_process = st.text_area("🚀 **Sujets à traiter (séparés par virgules ou lignes) :**", 
-                              placeholder="Ex: chat, petit chien, forêt enchantée...", height=120)
-    # MODIFICATION ICI : On nettoie pour accepter les virgules
+    to_process = st.text_area("🚀 **Sujets à traiter :**", placeholder="Ex: chat, petit chien...", height=120)
     process_list = [s.strip() for s in to_process.replace(',', '\n').split('\n') if s.strip()]
 
 with col_config:
@@ -160,56 +176,53 @@ if run_btn and process_list:
             st.error(f"Erreur sur {subject} : {e}")
     st.rerun()
 
-# --- HISTORIQUE COMPLET AVEC SYSTÈME DE SUPPRESSION ---
+# --- SECTION ASSETS (RESSOURCES BOUTIQUE) ---
+st.divider()
+st.subheader("🖼️ Ressources Boutique (Drag & Drop)")
+asset_files = [f for f in os.listdir(ASSETS_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+
+if asset_files:
+    # Affichage en colonnes (6 images par ligne)
+    cols = st.columns(6)
+    for idx, asset in enumerate(asset_files):
+        with cols[idx % 6]:
+            img_path = os.path.join(ASSETS_DIR, asset)
+            st.image(img_path, use_container_width=True)
+            st.caption(f"📍 {asset}")
+else:
+    st.info(f"Le dossier `{ASSETS_DIR}` est vide. Ajoute tes images standards ici (Size charts, promos...).")
+
+# --- HISTORIQUE COMPLET ---
 st.divider()
 st.subheader("🗃️ Inventaire des Productions")
 
 if os.path.exists("exports"):
-    # On récupère la liste des dossiers
     folders = sorted(os.listdir("exports"), reverse=True)
-    
     for f in folders:
         p = os.path.join("exports", f)
         if os.path.isdir(p):
-            # Création d'une ligne avec le titre et le bouton de suppression
-            # On utilise un container pour grouper visuellement
             with st.expander(f"📦 {f.replace('_', ' ').upper()}", expanded=False):
-                
-                # --- ZONE DE SUPPRESSION (SÉCURISÉE) ---
                 col_title, col_del = st.columns([5, 1])
                 with col_del:
-                    # Popover pour confirmer la suppression sans tout supprimer par erreur
                     with st.popover("🗑️ Supprimer", use_container_width=True):
-                        st.warning("Confirmer la suppression ?")
-                        if st.button("OUI, SUPPRIMER", key=f"del_{f}", type="primary", use_container_width=True):
-                            import shutil
-                            shutil.rmtree(p) # Supprime le dossier et tout son contenu
-                            st.toast(f"Produit {f} supprimé.")
-                            time.sleep(1)
+                        st.warning("Confirmer ?")
+                        if st.button("OUI", key=f"del_{f}", type="primary", use_container_width=True):
+                            shutil.rmtree(p)
                             st.rerun()
 
-                # --- AFFICHAGE DES VISUELS ---
                 v1, v2, v3 = st.columns(3)
-                # Image 1 : Référence
                 if os.path.exists(os.path.join(p, "1_ref.png")):
-                    v1.image(os.path.join(p, "1_ref.png"), caption="Référence IA")
+                    v1.image(os.path.join(p, "1_ref.png"), caption="Référence")
                 
-                # Image 2 : Pixel HD (avec fallback)
-                img_px_path = os.path.join(p, "2_pix_hd.png")
-                if not os.path.exists(img_px_path): 
-                    img_px_path = os.path.join(p, "2_pix.png")
-                
+                img_px_path = os.path.join(p, "2_pix_hd.png") if os.path.exists(os.path.join(p, "2_pix_hd.png")) else os.path.join(p, "2_pix.png")
                 if os.path.exists(img_px_path):
-                    v2.image(img_px_path, caption="Pixel HD (Etsy Ready)")
+                    v2.image(img_px_path, caption="Pixel HD")
                 
-                # Image 3 : Mockup
                 if os.path.exists(os.path.join(p, "3_mockup.png")):
-                    v3.image(os.path.join(p, "3_mockup.png"), caption="Mockup Final")
+                    v3.image(os.path.join(p, "3_mockup.png"), caption="Mockup")
                 
-                # --- SEO & ACTIONS ---
                 st.write("")
                 c_seo, c_act = st.columns([3, 1])
-                
                 with c_seo:
                     seo_path = os.path.join(p, "seo.txt")
                     if os.path.exists(seo_path):
@@ -230,6 +243,5 @@ if os.path.exists("exports"):
                 with c_act:
                     st.write("📂 **Fichiers :**")
                     if st.button("📁 Dossier Windows", key=f"btn_{f}", use_container_width=True):
-                        target = os.path.join(p, "color.pdf")
-                        open_folder_and_select(target if os.path.exists(target) else p)
+                        open_folder_and_select(os.path.join(p, "3_mockup.png"))
                     st.success("Prêt ✅")

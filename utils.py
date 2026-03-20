@@ -294,39 +294,43 @@ def add_pro_badge(target_image):
     center_x = w - badge_radius - margin
     center_y = badge_radius + margin
     
-    # Fond du badge
+    # Dessin du badge
     bbox = [center_x - badge_radius, center_y - badge_radius, center_x + badge_radius, center_y + badge_radius]
     draw.ellipse(bbox, fill=(255, 255, 255, 255), outline=(30, 30, 30, 255), width=int(w * 0.006))
 
-    # TAILLES DE POLICE FIXES (Calculées sur le badge)
     f_size_big = int(badge_radius * 0.65)
     f_size_small = int(badge_radius * 0.28)
 
-    # RECHERCHE FORCEE DE POLICE
+    # --- LOGIQUE DE POLICE UNIVERSELLE ---
     font_big = None
-    # On teste des chemins absolus Windows si le nom simple échoue
-    possible_fonts = ["arialbd.ttf", "arial.ttf", "C:\\Windows\\Fonts\\arialbd.ttf", "C:\\Windows\\Fonts\\arial.ttf"]
     
-    for f_name in possible_fonts:
+    # Liste de priorité
+    # 1. On cherche d'abord le fichier local (que tu vas ajouter au projet)
+    # 2. On cherche les polices Linux (pour le serveur en ligne)
+    # 3. On cherche Arial (pour ton localhost)
+    fonts_to_test = [
+        "arialbd.ttf",  # Ton fichier local (à uploader sur GitHub/Streamlit)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Standard Linux
+        "arial.ttf" # Backup Localhost
+    ]
+    
+    for f_path in fonts_to_test:
         try:
-            font_big = ImageFont.truetype(f_name, f_size_big)
-            font_small = ImageFont.truetype(f_name, f_size_small)
-            break
+            font_big = ImageFont.truetype(f_path, f_size_big)
+            font_small = ImageFont.truetype(f_path, f_size_small)
+            break # Si trouvé, on arrête la boucle
         except:
             continue
 
     if font_big is None:
-        # Si vraiment RIEN ne marche, on utilise le défaut mais on prévient
         font_big = ImageFont.load_default()
         font_small = ImageFont.load_default()
-        st.warning("⚠️ Police système introuvable : Badge en texte réduit.")
 
-    # Dessin
+    # Dessin du texte
     draw.text((center_x, center_y - int(badge_radius * 0.15)), "PDF", fill=(0,0,0), font=font_big, anchor="mm")
     draw.text((center_x, center_y + int(badge_radius * 0.40)), "PATTERN", fill=(60,60,60), font=font_small, anchor="mm")
     
     return Image.alpha_composite(img, overlay).convert("RGB")
-
 
 def generate_seo_package(visual_concept, num_colors, grid_size):
     """Génère le pack SEO avec les vraies specs techniques"""
