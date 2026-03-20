@@ -284,77 +284,48 @@ def generate_mockup_func(processed_image):
     return image_result
 
 def add_pro_badge(target_image):
-    """Ajoute le badge 'PDF PATTERN' en gros et lisible avec gestion robuste des polices"""
-    # 1. Préparation du canevas
     img = target_image.convert("RGBA")
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     
     w, h = img.size
-    badge_radius = int(w * 0.12) # Légèrement agrandi (12% au lieu de 11%)
+    badge_radius = int(w * 0.12)
     margin = int(w * 0.04)
-    
     center_x = w - badge_radius - margin
     center_y = badge_radius + margin
     
-    # Dessin du cercle de fond
-    bbox = [center_x - badge_radius, center_y - badge_radius, 
-            center_x + badge_radius, center_y + badge_radius]
-    
-    # Fond blanc avec une légère ombre portée (optionnel mais pro)
-    draw.ellipse([b + 4 for b in bbox], fill=(0, 0, 0, 60)) # Ombre
-    draw.ellipse(bbox, fill=(255, 255, 255, 255)) 
-    draw.ellipse(bbox, outline=(30, 30, 30, 255), width=int(w * 0.006))
-    
-    # 2. Gestion des polices (Correction du bug de taille)
-    font_size_big = int(badge_radius * 0.65) 
-    font_size_small = int(badge_radius * 0.28)
-    
-    # Liste de polices à tester par ordre de préférence
-    if os.name == 'nt': # Windows
-        fonts_to_try = ["arialbd.ttf", "arial.ttf", "calibrib.ttf", "segoeuib.ttf"]
-    else: # Linux/Mac
-        fonts_to_try = ["DejaVuSans-Bold.ttf", "LiberationSans-Bold.ttf", "Ubuntu-B.ttf"]
+    # Fond du badge
+    bbox = [center_x - badge_radius, center_y - badge_radius, center_x + badge_radius, center_y + badge_radius]
+    draw.ellipse(bbox, fill=(255, 255, 255, 255), outline=(30, 30, 30, 255), width=int(w * 0.006))
 
+    # TAILLES DE POLICE FIXES (Calculées sur le badge)
+    f_size_big = int(badge_radius * 0.65)
+    f_size_small = int(badge_radius * 0.28)
+
+    # RECHERCHE FORCEE DE POLICE
     font_big = None
-    for f in fonts_to_try:
+    # On teste des chemins absolus Windows si le nom simple échoue
+    possible_fonts = ["arialbd.ttf", "arial.ttf", "C:\\Windows\\Fonts\\arialbd.ttf", "C:\\Windows\\Fonts\\arial.ttf"]
+    
+    for f_name in possible_fonts:
         try:
-            font_big = ImageFont.truetype(f, font_size_big)
-            font_small = ImageFont.truetype(f, font_size_small)
-            break # Si on en trouve une, on s'arrête
+            font_big = ImageFont.truetype(f_name, f_size_big)
+            font_small = ImageFont.truetype(f_name, f_size_small)
+            break
         except:
             continue
 
-    # Si vraiment aucune police n'est trouvée, on utilise une ruse pour agrandir le défaut
     if font_big is None:
-        # Note : load_default() ne supporte pas l'argument size sur les vieilles versions de Pillow
-        # On essaie au moins de charger la version système générique
+        # Si vraiment RIEN ne marche, on utilise le défaut mais on prévient
         font_big = ImageFont.load_default()
         font_small = ImageFont.load_default()
-        print("⚠️ Alerte : Aucune police TTF trouvée. Le texte sera petit.")
+        st.warning("⚠️ Police système introuvable : Badge en texte réduit.")
 
-    # 3. Dessin du texte
-    # PDF
-    draw.text(
-        (center_x, center_y - int(badge_radius * 0.15)), 
-        "PDF", 
-        fill=(0, 0, 0, 255), 
-        font=font_big, 
-        anchor="mm"
-    )
+    # Dessin
+    draw.text((center_x, center_y - int(badge_radius * 0.15)), "PDF", fill=(0,0,0), font=font_big, anchor="mm")
+    draw.text((center_x, center_y + int(badge_radius * 0.40)), "PATTERN", fill=(60,60,60), font=font_small, anchor="mm")
     
-    # PATTERN
-    draw.text(
-        (center_x, center_y + int(badge_radius * 0.40)), 
-        "PATTERN", 
-        fill=(80, 80, 80, 255), 
-        font=font_small, 
-        anchor="mm"
-    )
-    
-    # Fusion et retour en RGB
     return Image.alpha_composite(img, overlay).convert("RGB")
-
 
 
 def generate_seo_package(visual_concept, num_colors, grid_size):
