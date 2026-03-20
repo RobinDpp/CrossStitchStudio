@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-import subprocess
 import time
 import shutil
 from PIL import Image
@@ -53,7 +52,6 @@ st.markdown("""
     .done-pill { color: #00ff88; font-weight: bold; text-decoration: line-through rgba(0,255,136,0.3); padding: 0 4px; }
     .todo-pill { color: #8b949e; padding: 0 4px; }
 
-    /* Style pour les images de ressources et de produits */
     [data-testid="stImage"] img {
         border-radius: 8px;
         border: 1px solid #30363d;
@@ -72,14 +70,6 @@ st.markdown("""
         border: 1px solid #30363d; 
         border-left: 5px solid #2e7d32; 
     }
-
-    .asset-card {
-        background-color: #161b22;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #30363d;
-        text-align: center;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -88,13 +78,6 @@ def copy_btn(text, label, key):
     clean_text = text.replace("`", "\\`").replace("'", "\\'").replace("\n", "\\n")
     html = f"""<button onclick="navigator.clipboard.writeText(`{clean_text}`)" style="background-color: #1e4620; color: white; border: 1px solid #2e7d32; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 12px;">📋 {label}</button>"""
     st.components.v1.html(html, height=50)
-
-def open_folder_and_select(file_path):
-    path = os.path.realpath(file_path)
-    if os.name == 'nt': # Windows
-        subprocess.Popen(f'explorer /select,"{path}"')
-    else:
-        subprocess.Popen(['open', os.path.dirname(path)])
 
 # --- SIDEBAR : LISTE INTELLIGENTE ---
 with st.sidebar:
@@ -182,7 +165,6 @@ st.subheader("🖼️ Ressources Boutique (Drag & Drop)")
 asset_files = [f for f in os.listdir(ASSETS_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
 
 if asset_files:
-    # Affichage en colonnes (6 images par ligne)
     cols = st.columns(6)
     for idx, asset in enumerate(asset_files):
         with cols[idx % 6]:
@@ -190,9 +172,9 @@ if asset_files:
             st.image(img_path, use_container_width=True)
             st.caption(f"📍 {asset}")
 else:
-    st.info(f"Le dossier `{ASSETS_DIR}` est vide. Ajoute tes images standards ici (Size charts, promos...).")
+    st.info(f"Le dossier `{ASSETS_DIR}` est vide.")
 
-# --- HISTORIQUE COMPLET ---
+# --- HISTORIQUE & TELECHARGEMENTS ---
 st.divider()
 st.subheader("🗃️ Inventaire des Productions")
 
@@ -205,24 +187,26 @@ if os.path.exists("exports"):
                 col_title, col_del = st.columns([5, 1])
                 with col_del:
                     with st.popover("🗑️ Supprimer", use_container_width=True):
-                        st.warning("Confirmer ?")
                         if st.button("OUI", key=f"del_{f}", type="primary", use_container_width=True):
                             shutil.rmtree(p)
                             st.rerun()
 
+                # --- VISUELS ---
                 v1, v2, v3 = st.columns(3)
                 if os.path.exists(os.path.join(p, "1_ref.png")):
                     v1.image(os.path.join(p, "1_ref.png"), caption="Référence")
                 
-                img_px_path = os.path.join(p, "2_pix_hd.png") if os.path.exists(os.path.join(p, "2_pix_hd.png")) else os.path.join(p, "2_pix.png")
-                if os.path.exists(img_px_path):
-                    v2.image(img_px_path, caption="Pixel HD")
+                hd_path = os.path.join(p, "2_pix_hd.png")
+                if os.path.exists(hd_path):
+                    v2.image(hd_path, caption="Pixel HD")
                 
                 if os.path.exists(os.path.join(p, "3_mockup.png")):
-                    v3.image(os.path.join(p, "3_mockup.png"), caption="Mockup")
+                    v3.image(os.path.join(p, "3_mockup.png"), caption="Mockup Final")
                 
+                # --- SEO & BOUTONS DE TELECHARGEMENT ---
                 st.write("")
-                c_seo, c_act = st.columns([3, 1])
+                c_seo, c_act = st.columns([1.8, 1])
+                
                 with c_seo:
                     seo_path = os.path.join(p, "seo.txt")
                     if os.path.exists(seo_path):
@@ -233,7 +217,7 @@ if os.path.exists("exports"):
                             ds_v = content[2].replace('DESCRIPTION:', '').strip() if len(content)>2 else ""
                         
                         st.markdown('<div class="copy-container">', unsafe_allow_html=True)
-                        st.write("🏃 **Copie Rapide :**")
+                        st.write("🏃 **SEO :**")
                         bc1, bc2, bc3 = st.columns(3)
                         with bc1: copy_btn(t_v, "Titre", f"t_{f}")
                         with bc2: copy_btn(tg_v, "Tags", f"tg_{f}")
@@ -241,7 +225,37 @@ if os.path.exists("exports"):
                         st.markdown('</div>', unsafe_allow_html=True)
                 
                 with c_act:
-                    st.write("📂 **Fichiers :**")
-                    if st.button("📁 Dossier Windows", key=f"btn_{f}", use_container_width=True):
-                        open_folder_and_select(os.path.join(p, "3_mockup.png"))
+                    st.write("📥 **Téléchargements :**")
+                    
+                    # Boutons pour les PDF
+                    pdf_files = [("color.pdf", "🎨 PDF Couleur"), ("bw.pdf", "🏁 PDF N&B"), ("pk.pdf", "📱 PDF Saga")]
+                    
+                    for filename, label in pdf_files:
+                        full_p = os.path.join(p, filename)
+                        if os.path.exists(full_p):
+                            with open(full_p, "rb") as file:
+                                st.download_button(
+                                    label=label,
+                                    data=file,
+                                    file_name=f"{f}_{filename}",
+                                    mime="application/pdf",
+                                    key=f"dl_{filename}_{f}",
+                                    use_container_width=True
+                                )
+                    
+                    # Bouton pour l'image HD
+                    if os.path.exists(hd_path):
+                        with open(hd_path, "rb") as file:
+                            st.download_button(
+                                label="🖼️ Image HD (Etsy)",
+                                data=file,
+                                file_name=f"{f}_HD.png",
+                                mime="image/png",
+                                key=f"dl_img_{f}",
+                                use_container_width=True
+                            )
+
                     st.success("Prêt ✅")
+
+# --- PIED DE PAGE ---
+st.caption("Etsy Factory v2.5 - Mode Cloud activé (Téléchargements directs)")

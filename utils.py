@@ -202,42 +202,114 @@ def generate_flosscross_pdf(processed_img, user_texts, bw_mode, used_colors):
     return buffer.getvalue()
 
 def generate_pk_pdf(processed_img, used_colors):
+    import io
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+
     buffer = io.BytesIO()
-    rows, cols = processed_img.size
+    cols, rows = processed_img.size
     cell_size = 15
-    pw, ph = (cols * cell_size) + 100, (rows * cell_size) + 150
+    
+    # Marges pour les chiffres sur les côtés
+    margin_left = 60
+    margin_top = 60
+    
+    # Calcul de la hauteur totale (Grille + Légende)
+    ph_grille = (rows * cell_size) + margin_top + 50
+    ph_legende = (len(used_colors) * 25) + 100
+    ph = ph_grille + ph_legende
+    pw = (cols * cell_size) + margin_left + 50
+    
     c = canvas.Canvas(buffer, pagesize=(pw, ph))
-    draw_x, draw_y = 50, ph - 50
+    
+    # --- 1. GRILLE & SYMBOLES ---
+    base_x = margin_left
+    base_y = ph - margin_top
+
     for y in range(rows):
         for x in range(cols):
             pixel = processed_img.getpixel((x, y))
+            from utils import get_closest_dmc
             dmc = get_closest_dmc(pixel)
-            data = used_colors[dmc["floss"]]
-            rx, ry = draw_x + (x * cell_size), draw_y - ((y + 1) * cell_size)
-            c.setLineWidth(0.1)
-            c.setStrokeColor(colors.lightgrey)
+            
+            # Récupération du symbole depuis used_colors
+            floss_id = dmc["floss"]
+            data = used_colors.get(floss_id, {"sym": "?"})
+            
+            rx = base_x + (x * cell_size)
+            ry = base_y - ((y + 1) * cell_size)
+            
+            # Couleur du pixel (Directement depuis dmc r, g, b)
             c.setFillColorRGB(dmc["r"]/255, dmc["g"]/255, dmc["b"]/255)
-            c.rect(rx, ry, cell_size, cell_size, fill=1)
+            c.rect(rx, ry, cell_size, cell_size, fill=1, stroke=0)
+            
+            # Symbole avec contraste intelligent
             bright = (dmc["r"] * 299 + dmc["g"] * 587 + dmc["b"] * 114) / 1000
-            c.setFillColor(colors.white if bright < 125 else colors.black)
-            c.setFont("Helvetica", cell_size * 0.6)
-            c.drawCentredString(rx + cell_size/2, ry + cell_size/4, data["sym"])
-    
-    # Légende simplifiée pour Pattern Keeper
-    y_leg = draw_y - (rows * cell_size) - 40
+            c.setFillColor(colors.white if bright < 128 else colors.black)
+            c.setFont("Helvetica-Bold", cell_size * 0.6)
+            c.drawCentredString(rx + cell_size/2, ry + cell_size/3.5, str(data["sym"]))
+
+    # --- 2. AXES NUMÉROTÉS (10, 20, 30...) ---
+    c.setStrokeColor(colors.black)
     c.setFillColor(colors.black)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(draw_x, y_leg, "Legend")
-    y_leg -= 20
-    for code, data in used_colors.items():
-        c.drawString(draw_x, y_leg, f"DMC {code} - {data['info']['description']}")
-        y_leg -= 15
-        if y_leg < 20: break
+    c.setFont("Helvetica-Bold", 10)
+    
+    for x in range(cols + 1):
+        lx = base_x + (x * cell_size)
+        c.setLineWidth(1.5 if x % 10 == 0 else 0.2)
+        c.line(lx, base_y, lx, base_y - (rows * cell_size))
+        if x % 10 == 0 and x > 0:
+            c.drawCentredString(lx, base_y + 8, str(x))
+
+    for y in range(rows + 1):
+        ly = base_y - (y * cell_size)
+        c.setLineWidth(1.5 if y % 10 == 0 else 0.2)
+        c.line(base_x, ly, base_x + (cols * cell_size), ly)
+        if y % 10 == 0 and y > 0:
+            c.drawString(base_x - 25, ly - 4, str(y))
+
+    # --- 3. LÉGENDE COULEUR (CORRIGÉE) ---
+    y_leg = base_y - (rows * cell_size) - 60
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(base_x, y_leg, "COLOR KEY (DMC)")
+    y_leg -= 40
+    
+    for floss_id, data in used_colors.items():
+        # ICI : On pioche r, g, b dans data['info']
+        dmc_info = data['info']
+        r, g, b = dmc_info['r'], dmc_info['g'], dmc_info['b']
+        
+        # Dessin du carré avec la VRAIE couleur DMC
+        c.setFillColorRGB(r/255, g/255, b/255)
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(0.5)
+        c.rect(base_x, y_leg - 2, 20, 20, fill=1, stroke=1)
+        
+        # Symbole sur le carré
+        bright = (r * 299 + g * 587 + b * 114) / 1000
+        c.setFillColor(colors.white if bright < 128 else colors.black)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawCentredString(base_x + 10, y_leg + 4, str(data['sym']))
+        
+        # Texte descriptif
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica", 12)
+        desc = dmc_info.get('description', 'DMC').title()
+        c.drawString(base_x + 35, y_leg + 4, f"DMC {floss_id} - {desc}")
+        
+        y_leg -= 30
+        
+        # Sécurité saut de page
+        if y_leg < 50:
+            c.showPage()
+            y_leg = ph - 60
+            c.setFont("Helvetica-Bold", 18)
+            c.drawString(base_x, y_leg, "COLOR KEY (DMC) (Continued)")
+            y_leg -= 40
 
     c.save()
+    buffer.seek(0)
     return buffer.getvalue()
-
-
 
 def generate_mockup_func(processed_image):
     """Génère le mockup à partir de l'image pixelisée (Page 3)"""
