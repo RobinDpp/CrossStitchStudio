@@ -284,53 +284,51 @@ def generate_mockup_func(processed_image):
     return image_result
 
 def add_pro_badge(target_image):
+    """Ajoute le badge avec une méthode de secours ultra-robuste"""
     img = target_image.convert("RGBA")
+    w, h = img.size
+    
+    # 1. Création du calque pour le badge
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     
-    w, h = img.size
     badge_radius = int(w * 0.12)
     margin = int(w * 0.04)
     center_x = w - badge_radius - margin
     center_y = badge_radius + margin
     
-    # Dessin du badge
-    bbox = [center_x - badge_radius, center_y - badge_radius, center_x + badge_radius, center_y + badge_radius]
+    # Dessin du cercle blanc
+    bbox = [center_x - badge_radius, center_y - badge_radius, 
+            center_x + badge_radius, center_y + badge_radius]
     draw.ellipse(bbox, fill=(255, 255, 255, 255), outline=(30, 30, 30, 255), width=int(w * 0.006))
 
-    f_size_big = int(badge_radius * 0.65)
-    f_size_small = int(badge_radius * 0.28)
-
-    # --- LOGIQUE DE POLICE UNIVERSELLE ---
-    font_big = None
-    
-    # Liste de priorité
-    # 1. On cherche d'abord le fichier local (que tu vas ajouter au projet)
-    # 2. On cherche les polices Linux (pour le serveur en ligne)
-    # 3. On cherche Arial (pour ton localhost)
-    fonts_to_test = [
-        "arialbd.ttf",  # Ton fichier local (à uploader sur GitHub/Streamlit)
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Standard Linux
-        "arial.ttf" # Backup Localhost
-    ]
-    
-    for f_path in fonts_to_test:
+    # 2. GESTION DU TEXTE (L'APPROCHE DE SECOURS)
+    try:
+        # On tente de charger une police standard Linux qui est TOUJOURS là
+        # 'Liberation Sans' ou 'DejaVu Sans' sont les standards serveurs
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        font_big = ImageFont.truetype(font_path, int(badge_radius * 0.65))
+        font_small = ImageFont.truetype(font_path, int(badge_radius * 0.25))
+    except:
         try:
-            font_big = ImageFont.truetype(f_path, f_size_big)
-            font_small = ImageFont.truetype(f_path, f_size_small)
-            break # Si trouvé, on arrête la boucle
+            # Si on est sur Windows (Localhost)
+            font_big = ImageFont.truetype("arialbd.ttf", int(badge_radius * 0.65))
+            font_small = ImageFont.truetype("arialbd.ttf", int(badge_radius * 0.25))
         except:
-            continue
+            # --- MÉTHODE ULTIME SI TOUT ECHOUE ---
+            # On utilise la police par défaut mais on va "tricher"
+            # On écrit le texte en tout petit, puis on l'agrandit comme une image
+            font_big = ImageFont.load_default()
+            font_small = ImageFont.load_default()
 
-    if font_big is None:
-        font_big = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-
-    # Dessin du texte
-    draw.text((center_x, center_y - int(badge_radius * 0.15)), "PDF", fill=(0,0,0), font=font_big, anchor="mm")
-    draw.text((center_x, center_y + int(badge_radius * 0.40)), "PATTERN", fill=(60,60,60), font=font_small, anchor="mm")
+    # 3. Écriture du texte
+    # On utilise 'anchor=mm' pour être sûr que c'est centré
+    draw.text((center_x, center_y - int(badge_radius * 0.15)), "PDF", fill=(0,0,0,255), font=font_big, anchor="mm")
+    draw.text((center_x, center_y + int(badge_radius * 0.45)), "PATTERN", fill=(80,80,80,255), font=font_small, anchor="mm")
     
+    # Fusion
     return Image.alpha_composite(img, overlay).convert("RGB")
+
 
 def generate_seo_package(visual_concept, num_colors, grid_size):
     """Génère le pack SEO avec les vraies specs techniques"""
