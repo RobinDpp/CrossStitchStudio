@@ -222,6 +222,13 @@ if os.path.exists("exports"):
                         with bc1: copy_btn(t_v, "Titre", f"t_{f}")
                         with bc2: copy_btn(tg_v, "Tags", f"tg_{f}")
                         with bc3: copy_btn(ds_v, "Description", f"d_{f}")
+                        
+                        # --- AJOUT DE LA SECTION MATERIALS ICI ---
+                        st.divider() # Petite ligne de séparation discrète
+                        st.write("💎 **Materials (SEO Bonus) :**")
+                        mats_list = "Digital Download, PDF Pattern, DMC Color Chart, Instant Download, Pattern Keeper Ready, Cross Stitch Chart"
+                        copy_btn(mats_list, "Copier Matériaux", f"mats_{f}")
+                        
                         st.markdown('</div>', unsafe_allow_html=True)
                 
                 with c_act:
